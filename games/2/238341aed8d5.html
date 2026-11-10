@@ -1,0 +1,111 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Full-Screen Sandboxed Embed</title>
+    <style>
+        body, html { margin: 0; padding: 0; height: 100%; width: 100%; overflow: hidden; background: #f0f0f0; font-family: sans-serif; }
+        
+        #ui-container { 
+            height: 100vh; width: 100vw; display: flex; flex-direction: column; 
+            justify-content: center; align-items: center; text-align: center; 
+        }
+
+        .card { background: white; padding: 40px; border-radius: 12px; box-shadow: 0 10px 25px rgba(0,0,0,0.1); }
+        
+        .section { margin-bottom: 20px; padding-bottom: 20px; border-bottom: 1px solid #eee; }
+        .section:last-child { border-bottom: none; }
+
+        input[type="text"] { padding: 12px; width: 250px; border: 1px solid #ddd; border-radius: 6px; font-size: 14px; }
+        input[type="file"] { font-size: 14px; margin-top: 10px; }
+        
+        button { padding: 12px 24px; cursor: pointer; background: #2563eb; color: white; border: none; border-radius: 6px; font-weight: bold; transition: background 0.2s; }
+        button:hover { background: #1d4ed8; }
+
+        /* Floating Back Button */
+        #backBtn {
+            position: absolute; bottom: 20px; right: 20px; z-index: 100;
+            padding: 8px 16px; background: rgba(0,0,0,0.5); color: white;
+            border-radius: 20px; display: none; cursor: pointer; border: none;
+        }
+        #backBtn:hover { background: rgba(0,0,0,0.8); }
+
+        iframe { position: absolute; top: 0; left: 0; width: 100vw; height: 100vh; border: none; display: none; }
+    </style>
+</head>
+<body>
+
+    <div id="ui-container">
+        <div class="card">
+            <h2>Loader Studio</h2>
+            
+            <div class="section">
+                <p>Load from Web</p>
+                <input type="text" id="siteUrl" placeholder="https://www.example.com">
+                <button onclick="launchUrl()">Go</button>
+            </div>
+
+            <div class="section">
+                <p>Load Local HTML File</p>
+                <input type="file" id="htmlFile" accept=".html,.htm">
+                <button onclick="launchFile()">Load File</button>
+            </div>
+        </div>
+    </div>
+
+    <button id="backBtn" onclick="resetUI()">← Exit Viewer</button>
+    <iframe id="sandboxFrame" sandbox="allow-scripts allow-forms allow-same-origin"></iframe>
+
+    <script>
+        const iframe = document.getElementById('sandboxFrame');
+        const ui = document.getElementById('ui-container');
+        const backBtn = document.getElementById('backBtn');
+
+        function showIframe(source) {
+            iframe.src = source;
+            iframe.style.display = 'block';
+            ui.style.display = 'none';
+            backBtn.style.display = 'block';
+        }
+
+        function launchUrl() {
+            const url = document.getElementById('siteUrl').value;
+            if (url) {
+                const formattedUrl = url.startsWith('http') ? url : 'https://' + url;
+                showIframe(formattedUrl);
+            } else {
+                alert('Please enter a URL');
+            }
+        }
+
+        function launchFile() {
+            const fileInput = document.getElementById('htmlFile');
+            const file = fileInput.files[0];
+            
+            if (file) {
+                const reader = new FileReader();
+                reader.onload = function(e) {
+                    // Create a blob from the file content to bypass some local origin restrictions
+                    const blob = new Blob([e.target.result], { type: 'text/html' });
+                    const blobUrl = URL.createObjectURL(blob);
+                    showIframe(blobUrl);
+                };
+                reader.readAsText(file);
+            } else {
+                alert('Please select an HTML file first');
+            }
+        }
+
+        function resetUI() {
+            iframe.style.display = 'none';
+            iframe.src = '';
+            ui.style.display = 'flex';
+            backBtn.style.display = 'none';
+            // Clear inputs
+            document.getElementById('siteUrl').value = '';
+            document.getElementById('htmlFile').value = '';
+        }
+    </script>
+</body>
+</html>
