@@ -1,0 +1,350 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Gemini Assistant (Standalone)</title>
+    <!-- Use Tailwind via CDN for standalone -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
+    <!-- Markdown Parser -->
+    <script src="https://cdn.jsdelivr.net/npm/marked/marked.min.js"></script>
+    
+    <script>
+      tailwind.config = {
+        theme: {
+          extend: {
+            fontFamily: {
+              sans: ['Inter', 'sans-serif'],
+              mono: ['JetBrains Mono', 'monospace'],
+            },
+            colors: {
+              ai: {
+                primary: '#4f46e5',
+                secondary: '#818cf8',
+                bg: '#f8fafc',
+                border: '#e2e8f0'
+              }
+            }
+          }
+        }
+      }
+    </script>
+    <style>
+      body { font-family: 'Inter', sans-serif; background: #f8fafc; margin: 0; min-height: 100vh; overflow: hidden; }
+      
+      .markdown-body { font-size: 0.875rem; line-height: 1.625; color: #1e293b; }
+      .markdown-body p { margin-bottom: 1rem; }
+      .markdown-body p:last-child { margin-bottom: 0; }
+      .markdown-body h1, .markdown-body h2, .markdown-body h3 { font-weight: 600; color: #0f172a; margin-top: 1.5rem; margin-bottom: 0.75rem; }
+      .markdown-body ul { list-style-type: disc; margin-left: 1.25rem; margin-bottom: 1rem; }
+      .markdown-body ol { list-style-type: decimal; margin-left: 1.25rem; margin-bottom: 1rem; }
+      .markdown-body code { background: #f1f5f9; padding: 0.125rem 0.375rem; border-radius: 0.25rem; font-size: 13px; font-family: 'JetBrains Mono', monospace; color: #4f46e5; }
+      .markdown-body pre { background: #0f172a; color: #f1f5f9; padding: 1rem; border-radius: 0.75rem; overflow-x: auto; margin-bottom: 1rem; border: 1px solid #1e293b; }
+      .markdown-body pre code { background: transparent; padding: 0; color: inherit; font-size: 13px; }
+      .markdown-body a { color: #2563eb; font-weight: 500; text-decoration: none; }
+      .markdown-body a:hover { text-decoration: underline; }
+      
+      /* Typing Animation */
+      @keyframes float {
+        0%, 100% { transform: translateY(0); opacity: 0.5; }
+        50% { transform: translateY(-4px); opacity: 1; }
+      }
+      .typing-dot { animation: float 1.2s ease-in-out infinite; }
+      .delay-1 { animation-delay: 0.2s; }
+      .delay-2 { animation-delay: 0.4s; }
+
+      @keyframes slideIn {
+        from { opacity: 0; transform: translateY(10px) scale(0.98); }
+        to { opacity: 1; transform: translateY(0) scale(1); }
+      }
+      .animate-slide-in { animation: slideIn 0.4s ease-out forwards; }
+      
+      /* Scrollbar */
+      ::-webkit-scrollbar { width: 6px; }
+      ::-webkit-scrollbar-track { background: transparent; }
+      ::-webkit-scrollbar-thumb { background: #e2e8f0; border-radius: 9999px; }
+      ::-webkit-scrollbar-thumb:hover { background: #cbd5e1; }
+    </style>
+</head>
+<body class="flex h-screen bg-zinc-50 text-zinc-900 overflow-hidden">
+
+  <!-- Setup Overlay -->
+  <div id="setupOverlay" class="fixed inset-0 z-50 flex items-center justify-center p-6 bg-zinc-50">
+    <div class="absolute top-0 left-0 w-full h-full overflow-hidden pointer-events-none">
+      <div class="absolute top-[-10%] left-[-10%] w-[40%] h-[40%] bg-indigo-100 rounded-full blur-[120px] opacity-50"></div>
+      <div class="absolute bottom-[-10%] right-[-10%] w-[40%] h-[40%] bg-indigo-100 rounded-full blur-[120px] opacity-50"></div>
+    </div>
+    
+    <div class="bg-white/80 backdrop-blur-xl rounded-3xl shadow-2xl p-8 max-w-lg w-full border border-white/20 relative z-10 animate-slide-in">
+      <div class="flex justify-center mb-8">
+        <div class="p-5 bg-indigo-600 rounded-3xl shadow-lg shadow-indigo-200">
+          <svg class="w-12 h-12 text-white" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 8V4H8"/><rect width="16" height="12" x="4" y="8" rx="2"/><path d="M2 14h2"/><path d="M20 14h2"/><path d="M15 13v2"/><path d="M9 13v2"/></svg>
+        </div>
+      </div>
+      <h1 class="text-3xl font-bold text-center text-zinc-900 mb-2 tracking-tight">Horizon AI</h1>
+      <p class="text-center text-zinc-500 mb-10 text-lg">ODIN DIN FRINE FRINE.</p>
+      
+      <div class="space-y-6">
+        <div>
+          <label class="text-sm font-semibold text-zinc-700 flex items-center gap-2 mb-2">
+            psst.... paste this: AIzaSyDXKWOt6GBgh9jrXlSGvJHi6ouHwWb7Dlc
+          </label>
+          <input type="password" id="apiKeyInput" placeholder="Paste your AIzaSy... key here" class="w-full px-5 py-4 bg-zinc-50 border border-zinc-200 rounded-2xl focus:ring-4 focus:ring-indigo-100 focus:border-indigo-500 outline-none transition-all font-mono text-sm">
+          <p id="keyError" class="text-red-500 text-sm mt-2 font-medium hidden">Invalid key format.</p>
+        </div>
+        <button onclick="saveKey()" id="initBtn" class="w-full bg-zinc-900 hover:bg-zinc-800 text-white font-semibold py-4 rounded-2xl transition-all shadow-xl shadow-zinc-200 active:scale-[0.98] flex items-center justify-center gap-3 text-lg">
+          Initialize Assistant
+        </button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Main Chat -->
+  <div class="flex-1 flex flex-col min-w-0 bg-white relative">
+    <!-- Header -->
+    <header class="flex-none h-20 border-b border-zinc-100 px-6 flex items-center justify-between bg-white/50 backdrop-blur-xl sticky top-0 z-30">
+      <div class="flex items-center gap-4">
+        <button onclick="clearSession()" class="p-3 text-zinc-500 hover:bg-zinc-50 rounded-2xl transition-all border border-transparent" title="Reset Session">
+          <svg class="w-6 h-6" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 6h18"/><path d="M19 6v14c0 1-1 2-2 2H7c-1 0-2-1-2-2V6"/><path d="M8 6V4c0-1 1-2 2-2h4c1 0 2 1 2 2v2"/><line x1="10" x2="10" y1="11" y2="17"/><line x1="14" x2="14" y1="11" y2="17"/></svg>
+        </button>
+        <div class="flex items-center gap-3">
+          <div class="w-10 h-10 bg-zinc-900 rounded-2xl flex items-center justify-center shadow-lg transform -rotate-3">
+            <svg class="w-6 h-6 text-white" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 8V4H8"/><rect width="16" height="12" x="4" y="8" rx="2"/><path d="M2 14h2"/><path d="M20 14h2"/><path d="M15 13v2"/><path d="M9 13v2"/></svg>
+          </div>
+          <div>
+            <h1 class="font-bold text-zinc-900 leading-none mb-1">Gemini</h1>
+            <div class="flex items-center gap-1.5 leading-none">
+              <div class="w-1.5 h-1.5 bg-green-500 rounded-full animate-pulse"></div>
+              <span class="text-[10px] text-zinc-400 font-bold uppercase tracking-widest">Active Assistant</span>
+            </div>
+          </div>
+        </div>
+      </div>
+    </header>
+
+    <!-- Chat Area -->
+    <main class="flex-1 overflow-y-auto px-4 py-8 [scroll-behavior:auto] md:[scroll-behavior:smooth]" id="chat-container">
+
+      <div class="max-w-4xl mx-auto space-y-10" id="messagesDiv">
+        <!-- Messages Go Here -->
+      </div>
+      <div id="messagesEnd" class="h-10"></div>
+    </main>
+
+    <!-- Input Area -->
+    <footer class="flex-none px-6 pb-8 pt-2">
+      <div class="max-w-4xl mx-auto relative">
+        <div class="bg-white border border-zinc-200 rounded-2xl p-2.5 shadow-[0_20px_50px_rgba(0,0,0,0.08)] flex items-end gap-2 focus-within:border-indigo-400 focus-within:ring-4 focus-within:ring-indigo-50 transition-all duration-300">
+          <textarea id="userInput" placeholder="Message Gemini..." rows="1" class="flex-1 bg-transparent border-none focus:ring-0 resize-none py-4 px-5 max-h-48 text-zinc-900 placeholder-zinc-400 text-base outline-none" style="min-height: 56px" oninput="resizeTextarea(this)" onkeydown="handleKey(event)"></textarea>
+          <button id="sendBtn" onclick="sendMessage()" class="group relative h-12 w-12 sm:h-14 sm:w-14 bg-zinc-900 hover:bg-zinc-800 text-white rounded-2xl flex items-center justify-center transition-all active:scale-90 disabled:opacity-30 disabled:grayscale disabled:cursor-not-allowed shadow-lg overflow-hidden flex-none">
+            <div class="absolute inset-0 bg-indigo-500 transform translate-y-full group-hover:translate-y-0 transition-transform duration-300"></div>
+            <svg class="w-6 h-6 relative z-10" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="m22 2-7 20-4-9-9-4Z"/><path d="M22 2 11 13"/></svg>
+          </button>
+        </div>
+        <div class="absolute bottom-[-24px] left-0 right-0 flex justify-center">
+            <p class="text-[10px] font-bold uppercase tracking-[0.2em] text-zinc-300">Gemini 3.1 Pro • Standalone</p>
+        </div>
+      </div>
+    </footer>
+  </div>
+
+  <script>
+    let apiKey = localStorage.getItem('gemini_api_key_standalone');
+    const overlay = document.getElementById('setupOverlay');
+    const apiKeyInput = document.getElementById('apiKeyInput');
+    const errorMsg = document.getElementById('keyError');
+    const messagesDiv = document.getElementById('messagesDiv');
+    const userInput = document.getElementById('userInput');
+    const sendBtn = document.getElementById('sendBtn');
+    
+    // Conversation history to send for multi-turn chat
+    let conversationHistory = [];
+
+    if (apiKey) {
+      overlay.classList.add('hidden');
+      addMessage('model', "Hello! I'm your AI assistant powered by Gemini. How can I help you today?");
+    }
+
+    // Live validation
+    apiKeyInput.addEventListener('input', (e) => {
+      const val = e.target.value;
+      if (val && !val.startsWith('AIzaSy')) {
+        apiKeyInput.classList.add('border-red-400');
+        errorMsg.classList.remove('hidden');
+      } else {
+        apiKeyInput.classList.remove('border-red-400');
+        errorMsg.classList.add('hidden');
+      }
+    });
+
+    function saveKey() {
+      const key = apiKeyInput.value.trim();
+      if (key) {
+        apiKey = key;
+        localStorage.setItem('gemini_api_key_standalone', key);
+        overlay.classList.add('hidden');
+        conversationHistory = [];
+        messagesDiv.innerHTML = '';
+        addMessage('model', "Hello! I'm your AI assistant powered by Gemini. How can I help you today?");
+      }
+    }
+
+    function clearSession() {
+      if (confirm('Clear session and API key?')) {
+        localStorage.removeItem('gemini_api_key_standalone');
+        apiKey = null;
+        conversationHistory = [];
+        messagesDiv.innerHTML = '';
+        apiKeyInput.value = '';
+        overlay.classList.remove('hidden');
+      }
+    }
+
+    function resizeTextarea(el) {
+      el.style.height = 'auto';
+      el.style.height = Math.min(el.scrollHeight, 192) + 'px';
+    }
+
+    function handleKey(e) {
+      if (e.key === 'Enter' && !e.shiftKey) {
+        e.preventDefault();
+        sendMessage();
+      }
+    }
+
+    function createTypingIndicator() {
+      return `
+        <div class="flex gap-2 items-center py-2 h-6" id="typingIndicator">
+          <div class="w-2 h-2 bg-indigo-500 rounded-full typing-dot"></div>
+          <div class="w-2 h-2 bg-indigo-500 rounded-full typing-dot delay-1"></div>
+          <div class="w-2 h-2 bg-indigo-500 rounded-full typing-dot delay-2"></div>
+        </div>
+      `;
+    }
+
+    function addMessage(role, text, isHtml = false, isTyping = false) {
+      const isUser = role === 'user' || role === 'user'; // role parameter
+      const time = new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
+      
+      const wrapperId = 'msg-' + Date.now();
+      
+      // Determine format
+      let contentHtml = '';
+      if (isTyping) {
+        contentHtml = createTypingIndicator();
+      } else if (text) {
+        contentHtml = isHtml ? text : marked.parse(text);
+      } else {
+         contentHtml = marked.parse("Something went wrong");
+      }
+
+      const svgIconUser = `<svg class="w-5 h-5 sm:w-6 sm:h-6" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M19 21v-2a4 4 0 0 0-4-4H9a4 4 0 0 0-4 4v2"/><circle cx="12" cy="7" r="4"/></svg>`;
+      const svgIconBot = `<svg class="w-5 h-5 sm:w-6 sm:h-6" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 8V4H8"/><rect width="16" height="12" x="4" y="8" rx="2"/><path d="M2 14h2"/><path d="M20 14h2"/><path d="M15 13v2"/><path d="M9 13v2"/></svg>`;
+
+      const userStyles = 'bg-zinc-100 text-zinc-400 rotate-2';
+      const botStyles = 'bg-indigo-50 text-indigo-600 -rotate-2';
+
+      const userBubble = 'bg-zinc-900 text-white';
+      const botBubble = 'bg-white border border-zinc-100 shadow-sm text-zinc-900';
+
+      const html = `
+        <div id="${wrapperId}" class="flex gap-3 sm:gap-6 ${isUser ? 'flex-row-reverse' : ''} animate-slide-in">
+          <div class="flex-none w-10 h-10 sm:w-12 sm:h-12 rounded-2xl flex items-center justify-center transform ${isUser ? userStyles : botStyles}">
+            ${isUser ? svgIconUser : svgIconBot}
+          </div>
+          <div class="flex-1 min-w-0 ${isUser ? 'text-right' : ''}">
+            <div class="inline-block rounded-2xl text-left ${isUser ? userBubble : botBubble}">
+              ${!isUser ? '<div class="h-2 w-12 bg-indigo-500 rounded-tr-2xl rounded-bl-sm"></div>' : ''}
+              <div class="px-6 py-5">
+                <div class="${isTyping ? '' : 'markdown-body'}">
+                  ${contentHtml}
+                </div>
+              </div>
+            </div>
+            ${isTyping ? `
+            <div class="mt-2 flex items-center justify-start gap-2 px-6 typing-text">
+              <div class="w-1.5 h-1.5 bg-indigo-400 rounded-full"></div>
+              <span class="text-[10px] font-bold text-zinc-400 uppercase tracking-widest">Typing...</span>
+            </div>` : ''}
+            <div class="text-[10px] font-bold uppercase tracking-tighter text-zinc-300 mt-2 px-6">
+              ${time}
+            </div>
+          </div>
+        </div>
+      `;
+      
+      messagesDiv.insertAdjacentHTML('beforeend', html);
+messagesDiv.scrollTop = messagesDiv.scrollHeight; 
+return wrapperId;
+
+    }
+
+    function updateMessage(id, text) {
+      const el = document.getElementById(id);
+      if (el) {
+        const body = el.querySelector('.px-6.py-5');
+        const mkdwn = document.createElement('div');
+        mkdwn.className = 'markdown-body';
+        mkdwn.innerHTML = marked.parse(text);
+        body.innerHTML = '';
+        body.appendChild(mkdwn);
+        
+        // Remove typing text Indicator
+        const typingLabel = el.querySelector('.typing-text');
+        if (typingLabel) typingLabel.remove();
+        document.getElementById('messagesEnd').scrollIntoView({ behavior: 'smooth' });
+      }
+    }
+
+    async function sendMessage() {
+      const text = userInput.value.trim();
+      if (!text) return;
+      if (!apiKey) {
+        overlay.classList.remove('hidden');
+        return;
+      }
+
+      // Add User Message
+      addMessage('user', text);
+      userInput.value = '';
+      userInput.style.height = '56px';
+      sendBtn.disabled = true;
+
+      // Add Typing Indicator for Bot
+      const botMsgId = addMessage('model', '', false, true);
+
+      try {
+        // Construct history + new message for Gemini chat API payload
+        const contents = [];
+        for (const msg of conversationHistory) {
+           contents.push({ role: msg.role === 'user' ? 'user' : 'model', parts: [{ text: msg.text }] });
+        }
+        contents.push({ role: 'user', parts: [{ text }] });
+
+        const response = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/gemini-3-flash-preview:generateContent?key=${apiKey}`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ contents })
+        });
+        
+        const data = await response.json();
+        
+        if (data.error) {
+          updateMessage(botMsgId, 'Error: ' + data.error.message);
+        } else {
+          // Add to conversation history
+          conversationHistory.push({ role: 'user', text });
+          const botText = data.candidates[0].content.parts[0].text;
+          updateMessage(botMsgId, botText);
+          conversationHistory.push({ role: 'model', text: botText });
+        }
+      } catch (err) {
+        updateMessage(botMsgId, 'Network error. Please check your connection.');
+      }
+
+      sendBtn.disabled = false;
+    }
+  </script>
+</body>
+</html>
