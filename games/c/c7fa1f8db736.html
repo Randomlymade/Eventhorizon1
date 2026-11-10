@@ -1,0 +1,93 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Full-Screen Sandboxed Embed</title>
+    <style>
+        /* Resets body/html to use the full viewport without margins */
+        body, html {
+            margin: 0;
+            padding: 0;
+            height: 100%;
+            width: 100%;
+            overflow: hidden;
+            background: #f0f0f0;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            font-family: sans-serif;
+        }
+
+        /* Initial input box style */
+        #ui-container {
+            z-index: 10;
+            text-align: center;
+            background: white;
+            padding: 40px;
+            border-radius: 12px;
+            box-shadow: 0 10px 25px rgba(0,0,0,0.1);
+        }
+
+        input {
+            padding: 12px;
+            width: 300px;
+            border: 1px solid #ddd;
+            border-radius: 6px;
+            font-size: 16px;
+        }
+
+        button {
+            padding: 12px 24px;
+            margin-left: 8px;
+            cursor: pointer;
+            background: #2563eb;
+            color: white;
+            border: none;
+            border-radius: 6px;
+            font-weight: bold;
+        }
+
+        /* The iframe starts hidden and expands to full screen */
+        iframe {
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100vw;
+            height: 100vh;
+            border: none;
+            display: none;
+        }
+    </style>
+</head>
+<body>
+
+    <div id="ui-container">
+        <h2>Enter Website URL</h2>
+        <input type="text" id="siteUrl" placeholder="https://www.example.com">
+        <button onclick="launchSite()">Load Site</button>
+    </div>
+
+    <!-- Sandboxed iframe with key permissions -->
+    <iframe id="sandboxFrame" sandbox="allow-scripts allow-forms allow-same-origin"></iframe>
+
+    <script>
+        function launchSite() {
+            const url = document.getElementById('siteUrl').value;
+            const iframe = document.getElementById('sandboxFrame');
+            const ui = document.getElementById('ui-container');
+
+            if (url) {
+                // Ensure the URL has a protocol
+                const formattedUrl = url.startsWith('http') ? url : 'https://' + url;
+                
+                iframe.src = formattedUrl;
+                iframe.style.display = 'block';
+                ui.style.display = 'none'; // Removes the UI to let the iframe take over
+            } else {
+                alert('Please enter a valid link!');
+            }
+        }
+    </script>
+</body>
+</html>
